@@ -98,7 +98,7 @@ export function getChatHistoryPaginationKey(
   return `${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/api/history?ending_before=${firstChatFromPage.id}&limit=${PAGE_SIZE}`;
 }
 
-export function SidebarHistory({ user }: { user: AppSession["user"] | undefined }) {
+export function SidebarHistory({ user }: { user: NonNullable<AppSession>["user"] | undefined }) {
   const { setOpenMobile } = useSidebar();
   const pathname = usePathname();
   const id = pathname?.startsWith("/chat/") ? pathname.split("/")[2] : null;
