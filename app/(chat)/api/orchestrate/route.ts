@@ -113,8 +113,8 @@ export async function POST(request: Request) {
       });
     },
     generateId: generateUUID,
-    onError: async () => {
-      await updateAgentSession({ id: agentSessionRow.id, status: "failed" });
+    onError: () => {
+      updateAgentSession({ id: agentSessionRow.id, status: "failed" }).catch(console.error);
       return "The orchestration failed. Please try again.";
     },
   });
