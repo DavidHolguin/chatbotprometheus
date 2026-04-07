@@ -44,7 +44,7 @@ import {
 } from "../ui/alert-dialog";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
 
-export function AppSidebar({ user }: { user: AppSession["user"] | undefined }) {
+export function AppSidebar({ user }: { user: NonNullable<AppSession>["user"] | undefined }) {
   const router = useRouter();
   const { setOpenMobile, toggleSidebar } = useSidebar();
   const { mutate } = useSWRConfig();
