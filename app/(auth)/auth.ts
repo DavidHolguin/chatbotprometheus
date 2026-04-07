@@ -10,6 +10,7 @@ export type AppSession = {
     email: string | null;
     type: UserType;
   };
+  expires: string;
 } | null;
 
 /**
@@ -22,7 +23,9 @@ export async function auth(): Promise<AppSession> {
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (!user) return null;
+  if (!user) {
+    return null;
+  }
 
   const isAnonymous = user.is_anonymous ?? false;
 
@@ -32,6 +35,7 @@ export async function auth(): Promise<AppSession> {
       email: user.email ?? null,
       type: isAnonymous ? "guest" : "regular",
     },
+    expires: new Date(Date.now() + 1000 * 60 * 60 * 24).toISOString(),
   };
 }
 
