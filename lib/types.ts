@@ -27,6 +27,16 @@ export type ChatTools = {
   requestSuggestions: requestSuggestionsTool;
 };
 
+export type AgentTaskEvent = {
+  taskId: string;
+  agentName: string;
+  sessionId: string;
+  input: string;
+  output?: string;
+  error?: string;
+  sequenceIndex: number;
+};
+
 export type CustomUIDataTypes = {
   textDelta: string;
   imageDelta: string;
@@ -40,6 +50,14 @@ export type CustomUIDataTypes = {
   clear: null;
   finish: null;
   "chat-title": string;
+  // MAS events
+  "agent-session-id": string;
+  "agent-plan": string;
+  "agent-synthesis": string;
+  "agent-task-queued": AgentTaskEvent;
+  "agent-task-running": AgentTaskEvent;
+  "agent-task-completed": AgentTaskEvent;
+  "agent-task-failed": AgentTaskEvent;
 };
 
 export type ChatMessage = UIMessage<

@@ -8,12 +8,13 @@ config({
 });
 
 const runMigrate = async () => {
-  if (!process.env.POSTGRES_URL) {
-    console.log("POSTGRES_URL not defined, skipping migrations");
+  if (!process.env.SUPABASE_DB_URL_MIGRATION) {
+    console.log("SUPABASE_DB_URL_MIGRATION not defined, skipping migrations");
     process.exit(0);
   }
 
-  const connection = postgres(process.env.POSTGRES_URL, { max: 1 });
+  // Direct connection (Session mode) — PgBouncer no soporta prepared statements en migraciones
+  const connection = postgres(process.env.SUPABASE_DB_URL_MIGRATION, { max: 1 });
   const db = drizzle(connection);
 
   console.log("Running migrations...");

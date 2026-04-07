@@ -19,6 +19,12 @@ import type { VisibilityType } from "@/components/chat/visibility-selector";
 import { ChatbotError } from "../errors";
 import { generateUUID } from "../utils";
 import {
+  type AgentMemory,
+  agentMemory,
+  type AgentSession,
+  agentSession,
+  type AgentTask,
+  agentTask,
   type Chat,
   chat,
   type DBMessage,
@@ -33,7 +39,8 @@ import {
 } from "./schema";
 import { generateHashedPassword } from "./utils";
 
-const client = postgres(process.env.POSTGRES_URL ?? "");
+// Transaction pooler (puerto 6543) — prepare: false obligatorio para PgBouncer
+const client = postgres(process.env.SUPABASE_DB_URL ?? "", { prepare: false });
 const db = drizzle(client);
 
 export async function getUser(email: string): Promise<User[]> {
@@ -628,5 +635,167 @@ export async function getStreamIdsByChatId({ chatId }: { chatId: string }) {
       "bad_request:database",
       "Failed to get stream ids by chat id"
     );
+  }
+}
+
+// =============================================
+// QUERIES MAS (Multi-Agent System)
+// =============================================
+
+export async function createAgentSession({
+  chatId,
+  userId,
+  orchestratorModel,
+  plan,
+}: {
+  chatId: string;
+  userId: string;
+  orchestratorModel: string;
+  plan?: string;
+}): Promise<AgentSession[]> {
+  try {
+    return await db
+      .insert(agentSession)
+      .values({ chatId, userId, orchestratorModel, plan })
+      .returning();
+  } catch (_error) {
+    throw new ChatbotError("bad_request:database", "Failed to create agent session");
+  }
+}
+
+export async function updateAgentSession({
+  id,
+  status,
+  summary,
+  plan,
+}: {
+  id: string;
+  status?: AgentSession["status"];
+  summary?: string;
+  plan?: string;
+}) {
+  try {
+    await db
+      .update(agentSession)
+      .set({
+        ...(status && { status }),
+        ...(summary !== undefined && { summary }),
+        ...(plan !== undefined && { plan }),
+        updatedAt: new Date(),
+      })
+      .where(eq(agentSession.id, id));
+  } catch (_error) {
+    throw new ChatbotError("bad_request:database", "Failed to update agent session");
+  }
+}
+
+export async function createAgentTask({
+  sessionId,
+  agentName,
+  input,
+  sequenceIndex,
+}: {
+  sessionId: string;
+  agentName: string;
+  input: string;
+  sequenceIndex: number;
+}): Promise<AgentTask[]> {
+  try {
+    return await db
+      .insert(agentTask)
+      .values({ sessionId, agentName, input, sequenceIndex })
+      .returning();
+  } catch (_error) {
+    throw new ChatbotError("bad_request:database", "Failed to create agent task");
+  }
+}
+
+export async function updateAgentTask({
+  id,
+  status,
+  output,
+  errorMessage,
+}: {
+  id: string;
+  status: AgentTask["status"];
+  output?: string;
+  errorMessage?: string;
+}) {
+  try {
+    await db
+      .update(agentTask)
+      .set({
+        status,
+        ...(output !== undefined && { output }),
+        ...(errorMessage !== undefined && { errorMessage }),
+        updatedAt: new Date(),
+      })
+      .where(eq(agentTask.id, id));
+  } catch (_error) {
+    throw new ChatbotError("bad_request:database", "Failed to update agent task");
+  }
+}
+
+export async function getAgentTasksBySessionId({
+  sessionId,
+}: {
+  sessionId: string;
+}): Promise<AgentTask[]> {
+  try {
+    return await db
+      .select()
+      .from(agentTask)
+      .where(eq(agentTask.sessionId, sessionId))
+      .orderBy(asc(agentTask.sequenceIndex));
+  } catch (_error) {
+    throw new ChatbotError("bad_request:database", "Failed to get agent tasks");
+  }
+}
+
+export async function insertAgentMemory({
+  userId,
+  agentName,
+  content,
+  embedding,
+  metadata,
+}: {
+  userId: string;
+  agentName?: string;
+  content: string;
+  embedding?: number[];
+  metadata?: Record<string, unknown>;
+}): Promise<AgentMemory[]> {
+  try {
+    return await db
+      .insert(agentMemory)
+      .values({ userId, agentName, content, embedding, metadata })
+      .returning();
+  } catch (_error) {
+    throw new ChatbotError("bad_request:database", "Failed to insert agent memory");
+  }
+}
+
+export async function getRecentAgentMemory({
+  userId,
+  agentName,
+  limit = 5,
+}: {
+  userId: string;
+  agentName?: string;
+  limit?: number;
+}): Promise<AgentMemory[]> {
+  try {
+    const conditions = agentName
+      ? and(eq(agentMemory.userId, userId), eq(agentMemory.agentName, agentName))
+      : eq(agentMemory.userId, userId);
+
+    return await db
+      .select()
+      .from(agentMemory)
+      .where(conditions)
+      .orderBy(desc(agentMemory.createdAt))
+      .limit(limit);
+  } catch (_error) {
+    throw new ChatbotError("bad_request:database", "Failed to get agent memory");
   }
 }

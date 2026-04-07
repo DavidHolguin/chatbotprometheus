@@ -1,7 +1,5 @@
 import { NextResponse } from "next/server";
-import { getToken } from "next-auth/jwt";
-import { signIn } from "@/app/(auth)/auth";
-import { isDevelopmentEnvironment } from "@/lib/constants";
+import { createClient } from "@/lib/supabase/server";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -11,16 +9,24 @@ export async function GET(request: Request) {
       ? rawRedirect
       : "/";
 
-  const token = await getToken({
-    req: request,
-    secret: process.env.AUTH_SECRET,
-    secureCookie: !isDevelopmentEnvironment,
-  });
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
-  if (token) {
-    const base = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
-    return NextResponse.redirect(new URL(`${base}/`, request.url));
+  if (user) {
+    return NextResponse.redirect(new URL("/", request.url));
   }
 
-  return signIn("guest", { redirect: true, redirectTo: redirectUrl });
+  const { error } = await supabase.auth.signInAnonymously({
+    options: {
+      data: { type: "guest", isAnonymous: true },
+    },
+  });
+
+  if (error) {
+    return NextResponse.redirect(new URL("/login", request.url));
+  }
+
+  return NextResponse.redirect(new URL(redirectUrl, request.url));
 }

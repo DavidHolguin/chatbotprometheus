@@ -1,7 +1,9 @@
 import type { InferSelectModel } from "drizzle-orm";
 import {
   boolean,
+  customType,
   foreignKey,
+  integer,
   json,
   pgTable,
   primaryKey,
@@ -10,6 +12,15 @@ import {
   uuid,
   varchar,
 } from "drizzle-orm/pg-core";
+
+// Vector type para pgvector (extensión en schema extensions de Supabase)
+const pgVector = customType<{ data: number[]; config: { dimensions: number } }>(
+  {
+    dataType(config) {
+      return `extensions.vector(${config?.dimensions ?? 1536})`;
+    },
+  }
+);
 
 export const user = pgTable("User", {
   id: uuid("id").primaryKey().notNull().defaultRandom(),
@@ -134,3 +145,76 @@ export const stream = pgTable(
 );
 
 export type Stream = InferSelectModel<typeof stream>;
+
+// =============================================
+// TABLAS MAS (Multi-Agent System)
+// =============================================
+
+export const agentSession = pgTable("agent_sessions", {
+  id: uuid("id").primaryKey().notNull().defaultRandom(),
+  chatId: uuid("chatId")
+    .notNull()
+    .references(() => chat.id),
+  userId: uuid("userId")
+    .notNull()
+    .references(() => user.id),
+  status: varchar("status", {
+    enum: ["pending", "running", "completed", "failed"],
+  })
+    .notNull()
+    .default("pending"),
+  orchestratorModel: varchar("orchestratorModel", { length: 128 }).notNull(),
+  plan: text("plan"),
+  summary: text("summary"),
+  createdAt: timestamp("createdAt").notNull().defaultNow(),
+  updatedAt: timestamp("updatedAt").notNull().defaultNow(),
+});
+
+export type AgentSession = InferSelectModel<typeof agentSession>;
+
+export const agent = pgTable("agents", {
+  id: uuid("id").primaryKey().notNull().defaultRandom(),
+  name: varchar("name", { length: 64 }).notNull().unique(),
+  description: text("description").notNull(),
+  systemPrompt: text("systemPrompt").notNull(),
+  modelId: varchar("modelId", { length: 128 }).notNull(),
+  isActive: boolean("isActive").notNull().default(true),
+  createdAt: timestamp("createdAt").notNull().defaultNow(),
+});
+
+export type Agent = InferSelectModel<typeof agent>;
+
+export const agentTask = pgTable("agent_tasks", {
+  id: uuid("id").primaryKey().notNull().defaultRandom(),
+  sessionId: uuid("sessionId")
+    .notNull()
+    .references(() => agentSession.id),
+  agentName: varchar("agentName", { length: 64 }).notNull(),
+  input: text("input").notNull(),
+  output: text("output"),
+  status: varchar("status", {
+    enum: ["queued", "running", "completed", "failed"],
+  })
+    .notNull()
+    .default("queued"),
+  errorMessage: text("errorMessage"),
+  sequenceIndex: integer("sequenceIndex").notNull().default(0),
+  createdAt: timestamp("createdAt").notNull().defaultNow(),
+  updatedAt: timestamp("updatedAt").notNull().defaultNow(),
+});
+
+export type AgentTask = InferSelectModel<typeof agentTask>;
+
+export const agentMemory = pgTable("agent_memory", {
+  id: uuid("id").primaryKey().notNull().defaultRandom(),
+  userId: uuid("userId")
+    .notNull()
+    .references(() => user.id),
+  agentName: varchar("agentName", { length: 64 }),
+  content: text("content").notNull(),
+  metadata: json("metadata"),
+  embedding: pgVector("embedding", { dimensions: 1536 }),
+  createdAt: timestamp("createdAt").notNull().defaultNow(),
+});
+
+export type AgentMemory = InferSelectModel<typeof agentMemory>;

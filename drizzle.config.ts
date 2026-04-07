@@ -10,6 +10,7 @@ export default defineConfig({
   out: "./lib/db/migrations",
   dialect: "postgresql",
   dbCredentials: {
-    url: process.env.POSTGRES_URL ?? "",
+    // Direct connection (Session mode, puerto 5432) — requerido para migraciones
+    url: process.env.SUPABASE_DB_URL_MIGRATION ?? "",
   },
 });

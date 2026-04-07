@@ -20,20 +20,24 @@ export async function GET(request: NextRequest) {
     ).toResponse();
   }
 
-  const session = await auth();
+  try {
+    const session = await auth();
 
-  if (!session?.user) {
-    return new ChatbotError("unauthorized:chat").toResponse();
+    if (!session?.user) {
+      return new ChatbotError("unauthorized:chat").toResponse();
+    }
+
+    const chats = await getChatsByUserId({
+      id: session.user.id,
+      limit,
+      startingAfter,
+      endingBefore,
+    });
+
+    return Response.json(chats);
+  } catch (err: any) {
+    return Response.json({ error: err.message, stack: err.stack, details: err }, { status: 500 });
   }
-
-  const chats = await getChatsByUserId({
-    id: session.user.id,
-    limit,
-    startingAfter,
-    endingBefore,
-  });
-
-  return Response.json(chats);
 }
 
 export async function DELETE() {
