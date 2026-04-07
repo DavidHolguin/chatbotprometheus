@@ -99,7 +99,6 @@ export async function POST(request: Request) {
           }),
         },
         stopWhen: stepCountIs(6),
-        maxSteps: 6,
       });
 
       dataStream.merge(result.toUIMessageStream());
